@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Warehouse 3D component preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #e7eef6;
+      --muted: #9aabbd;
+      --amber: #f0b429;
+      --line: rgba(255, 255, 255, 0.1);
+      --panel: rgba(8, 12, 16, 0.78);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #10161d;
+      color: var(--ink);
+      font-family: Barlow, "Segoe UI", sans-serif;
+    }
+
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(120% 80% at 70% 40%, transparent 40%, rgba(0, 0, 0, 0.28) 100%),
+        linear-gradient(90deg, rgba(6, 10, 14, 0.55), transparent 42%);
+    }
+
+    .brand, .hero, .dock {
+      position: fixed;
+      z-index: 2;
+    }
+
+    .brand {
+      top: 22px;
+      left: 22px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background:
+        linear-gradient(#f0b429, #f0b429) 8px 16px / 20px 3px no-repeat,
+        linear-gradient(#8fb4d4, #8fb4d4) 8px 10px / 8px 14px no-repeat,
+        linear-gradient(#d9772c, #d9772c) 18px 10px / 8px 14px no-repeat,
+        #17202a;
+      border: 1px solid var(--line);
+    }
+
+    .brand strong {
+      display: block;
+      font-family: "Barlow Condensed", Barlow, sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.14em;
+      font-weight: 700;
+    }
+
+    .brand em, .eyebrow {
+      font-style: normal;
+      color: var(--amber);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .hero {
+      left: 22px;
+      bottom: 22px;
+      width: min(420px, calc(100% - 44px));
+      padding: 18px 18px 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .hero h1 {
+      margin: 6px 0 8px;
+      font-family: "Barlow Condensed", Barlow, sans-serif;
+      font-size: clamp(28px, 3.4vw, 42px);
+      line-height: 0.95;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .lede {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .points {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .points li {
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+
+    .points b {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .points span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dock {
+      top: 50%;
+      right: 22px;
+      transform: translateY(-50%);
+      width: 196px;
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .dock p { margin: 0 0 10px; }
+
+    .dock .hint {
+      position: static;
+      transform: none;
+      margin: 10px 0 0;
+      text-align: left;
+    }
+
+    .views {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    button {
+      appearance: none;
+      width: 100%;
+      text-align: left;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:hover { background: rgba(255, 255, 255, 0.04); }
+
+    button.is-on {
+      background: rgba(240, 180, 41, 0.12);
+      border-color: rgba(240, 180, 41, 0.45);
+      color: #ffe3a3;
+    }
+
+    .hint {
+      margin: 0;
+      color: rgba(231, 238, 246, 0.72);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .fallback {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      place-items: center;
+      padding: 24px;
+      background: #10161d;
+      text-align: center;
+    }
+
+    .fallback.is-on { display: grid; }
+
+    @media (max-width: 800px) {
+      .brand { top: 14px; left: 14px; }
+      .hero {
+        left: 12px;
+        right: 12px;
+        bottom: 78px;
+        width: auto;
+        padding: 12px 14px;
+      }
+      .lede, .points { display: none; }
+      .hero h1 { font-size: 28px; margin-bottom: 0; }
+      .dock {
+        top: auto;
+        right: 12px;
+        left: 12px;
+        bottom: 12px;
+        transform: none;
+        width: auto;
+        padding: 8px;
+      }
+      .dock > .eyebrow { display: none; }
+      .views { flex-direction: row; overflow: auto; }
+      button { width: auto; white-space: nowrap; }
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="vignette"></div>
+
+  <header class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <strong>RAMKUMAR</strong>
+      <em>3D visualization</em>
+    </div>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Industrial · Warehouse</p>
+    <h1>Reusable 3D parts for a live warehouse floor.</h1>
+    <p class="lede">Racks, pallets, aisles, and status markers as lightweight components for a React, Vite, and React Three Fiber platform.</p>
+    <ul class="points">
+      <li><b>Reusable</b><span>One rack, every aisle</span></li>
+      <li><b>Lightweight</b><span>Instanced loads</span></li>
+      <li><b>Ready to drop in</b><span>React Three Fiber</span></li>
+    </ul>
+  </section>
+
+  <aside class="dock">
+    <p class="eyebrow">Look at</p>
+    <div class="views">
+      <button type="button" class="is-on" data-view="overview">Overview</button>
+      <button type="button" data-view="racks">Pallet racks</button>
+      <button type="button" data-view="pallet">Floor pallets</button>
+      <button type="button" data-view="aisle">Aisle</button>
+      <button type="button" data-view="dock">Dock door</button>
+        <button type="button" data-view="status">Status beacons</button>
+      </div>
+      <p class="hint">Drag or scroll</p>
+    </aside>
+  <div class="fallback" id="fallback">
+    <p>This preview loads the 3D scene as a module. Open it from a local server, for example <code>python -m http.server 5173</code>, then visit <code>http://localhost:5173</code>.</p>
+  </div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x10161d);
+    scene.fog = new THREE.Fog(0x10161d, 24, 62);
+
+    const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 120);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.28;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.prepend(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.maxPolarAngle = Math.PI * 0.48;
+    controls.minDistance = 3;
+    controls.maxDistance = 40;
+    controls.target.set(0, 1.3, 0);
+
+    scene.add(new THREE.HemisphereLight(0xe7f1fb, 0x3a2a1c, 1.05));
+    const key = new THREE.DirectionalLight(0xfff3df, 2.8);
+    key.position.set(14, 20, 10);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.camera.near = 2;
+    key.shadow.camera.far = 50;
+    key.shadow.camera.left = -22;
+    key.shadow.camera.right = 22;
+    key.shadow.camera.top = 22;
+    key.shadow.camera.bottom = -22;
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0x9db7d6, 0.55);
+    fill.position.set(-10, 8, -6);
+    scene.add(fill);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(40, 30),
+      new THREE.MeshStandardMaterial({ color: 0x1a222c, roughness: 0.92, metalness: 0.04 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(40, 40, 0x314050, 0x24303c);
+    grid.position.y = 0.01;
+    const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
+    gridMaterials.forEach((material) => {
+      material.transparent = true;
+      material.opacity = 0.35;
+    });
+    scene.add(grid);
+
+    const steel = new THREE.MeshStandardMaterial({ color: 0x8e99a8, metalness: 0.62, roughness: 0.38 });
+    const blue = new THREE.MeshStandardMaterial({ color: 0x1f4f8f, metalness: 0.48, roughness: 0.42 });
+    const orange = new THREE.MeshStandardMaterial({ color: 0xd9772c, metalness: 0.35, roughness: 0.48 });
+    const deckMat = new THREE.MeshStandardMaterial({ color: 0x66717e, metalness: 0.25, roughness: 0.62 });
+    const cartonMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.74, metalness: 0.02 });
+    const wood = new THREE.MeshStandardMaterial({ color: 0x9a6a3c, roughness: 0.82 });
+    const yellow = new THREE.MeshStandardMaterial({ color: 0xf0b429, roughness: 0.45, metalness: 0.2 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1c242e, roughness: 0.6, metalness: 0.3 });
+
+    function hazardMaterial() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 128;
+      canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#14181e";
+      ctx.fillRect(0, 0, 128, 64);
+      ctx.fillStyle = "#f0b429";
+      for (let x = -64; x < 192; x += 64) {
+        ctx.beginPath();
+        ctx.moveTo(x, 64);
+        ctx.lineTo(x + 32, 0);
+        ctx.lineTo(x + 64, 0);
+        ctx.lineTo(x + 32, 64);
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.repeat.set(4, 1);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62 });
+    }
+
+    function paint(mesh, items, colored) {
+      const dummy = new THREE.Object3D();
+      items.forEach((item, index) => {
+        dummy.position.set(item.x, item.y, item.z);
+        dummy.rotation.set(0, item.ry || 0, 0);
+        dummy.scale.set(item.sx || 1, item.sy || 1, item.sz || 1);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(index, dummy.matrix);
+        if (colored) mesh.setColorAt(index, item.color);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    const rows = [-6.4, 0, 6.4];
+    const bays = 6;
+    const bayW = 2.45;
+    const depth = 1.08;
+    const levels = 4;
+    const levelH = 1.42;
+    const run = bays * bayW;
+    const x0 = -run / 2;
+    const posts = [];
+    const beams = [];
+    const decks = [];
+    const cartons = [];
+    const palette = ["#c4a574", "#e4e0d8", "#6e8b74", "#b86b45", "#4f6d8a"].map((hex) => new THREE.Color(hex));
+
+    for (const z of rows) {
+      for (let i = 0; i <= bays; i += 1) {
+        const x = x0 + i * bayW;
+        for (const side of [-1, 1]) {
+          posts.push({ x, y: (levels * levelH) / 2, z: z + side * (depth / 2) });
+        }
+      }
+      for (let i = 0; i < bays; i += 1) {
+        const x = x0 + bayW / 2 + i * bayW;
+        for (let level = 0; level < levels; level += 1) {
+          const y = 0.42 + level * levelH;
+          for (const side of [-1, 1]) {
+            beams.push({ x, y: y + 0.08, z: z + side * (depth / 2 - 0.02), sx: bayW * 0.94 });
+          }
+          decks.push({ x, y, z, sx: bayW * 0.9, sz: depth * 0.78 });
+          if ((i + level) % 5 === 0) continue;
+          const sy = 0.86 + ((i + level) % 3) * 0.08;
+          cartons.push({
+            x: x - 0.46,
+            y: y + 0.04 + 0.35 * sy,
+            z,
+            sx: 0.96,
+            sy,
+            sz: 0.9,
+            color: palette[(i + level) % palette.length],
+          });
+          cartons.push({
+            x: x + 0.46,
+            y: y + 0.04 + 0.32 * sy,
+            z,
+            sx: 0.9,
+            sy: sy * 0.92,
+            sz: 0.9,
+            color: palette[(i + level + 2) % palette.length],
+          });
+        }
+      }
+    }
+
+    paint(new THREE.InstancedMesh(new THREE.BoxGeometry(0.08, levels * levelH, 0.08), blue, posts.length), posts);
+    paint(new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.07, 0.06), orange, beams.length), beams);
+    paint(new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.045, 1), deckMat, decks.length), decks);
+    paint(new THREE.InstancedMesh(new THREE.BoxGeometry(0.78, 0.7, 0.86), cartonMat, cartons.length), cartons, true);
+
+    function stripe(z) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(run + 1.2, 0.02, 0.07), yellow);
+      mesh.position.set(0, 0.02, z);
+      scene.add(mesh);
+    }
+    stripe(-3.2);
+    stripe(3.2);
+
+    function addPallet(x, z, yaw) {
+      const group = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.1, 1.05), wood);
+      base.position.y = 0.08;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      group.add(base);
+      const loadMat = new THREE.MeshStandardMaterial({ color: palette[(x * 3 + z) & 3], roughness: 0.7 });
+      const load = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.72, 0.9), loadMat);
+      load.position.y = 0.52;
+      load.castShadow = true;
+      group.add(load);
+      group.position.set(x, 0, z);
+      group.rotation.y = yaw;
+      scene.add(group);
+    }
+
+    addPallet(1.6, 3.2, 0.08);
+    addPallet(-2.4, 3.2, -0.04);
+    addPallet(3.4, -3.2, 0.12);
+    addPallet(-4.2, -3.2, -0.2);
+
+    const beaconMats = [];
+    function addBeacon(x, z, color) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1.15, 10), steel);
+      pole.position.set(x, 0.58, z);
+      pole.castShadow = true;
+      const mat = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.8,
+        roughness: 0.35,
+      });
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 18), mat);
+      head.position.set(x, 1.24, z);
+      scene.add(pole, head);
+      beaconMats.push(mat);
+    }
+
+    const beaconX = x0 - 0.85;
+    addBeacon(beaconX, rows[0], 0x3dd68c);
+    addBeacon(beaconX, rows[1], 0xf0b429);
+    addBeacon(beaconX, rows[2], 0xe15b4c);
+
+    const hazard = hazardMaterial();
+    const doorX = 13.2;
+    const dockFrame = new THREE.Group();
+    [[-1.5, 1.7], [1.5, 1.7]].forEach(([z, h]) => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, h * 2, 0.16), steel);
+      post.position.set(0, h, z);
+      post.castShadow = true;
+      dockFrame.add(post);
+    });
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 3.2), steel);
+    lintel.position.set(0, 3.4, 0);
+    dockFrame.add(lintel);
+    const threshold = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.04, 3.3), hazard);
+    threshold.position.set(-0.5, 0.03, 0);
+    dockFrame.add(threshold);
+    const door = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 2.8, 2.7),
+      new THREE.MeshStandardMaterial({ color: 0x12181f, roughness: 0.8, emissive: 0x0c2030, emissiveIntensity: 0.4 })
+    );
+    door.position.set(0.05, 1.7, 0);
+    dockFrame.add(door);
+    dockFrame.position.set(doorX, 0, 0);
+    scene.add(dockFrame);
+
+    const truck = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.55, 0.86), yellow);
+    body.position.set(-0.1, 0.58, 0);
+    body.castShadow = true;
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.62, 0.8), dark);
+    cab.position.set(-0.28, 1.1, 0);
+    cab.castShadow = true;
+    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.55, 0.72), steel);
+    mast.position.set(0.72, 1.05, 0);
+    mast.castShadow = true;
+    [-0.22, 0.22].forEach((z) => {
+      const fork = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.04, 0.08), steel);
+      fork.position.set(1.05, 0.28, z);
+      truck.add(fork);
+    });
+    [[-0.45, -0.38], [-0.45, 0.38], [0.4, -0.38], [0.4, 0.38]].forEach(([x, z]) => {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 12), dark);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(x, 0.16, z);
+      truck.add(wheel);
+    });
+    truck.add(body, cab, mast);
+    truck.position.set(-5.5, 0, 3.2);
+    scene.add(truck);
+
+    const views = {
+      overview: { pos: [13.5, 6.4, 14.5], look: [0.5, 1.5, 0] },
+      racks: { pos: [8.2, 3.1, 3.15], look: [-1, 1.5, 0.2] },
+      pallet: { pos: [5.4, 2.4, 3.2], look: [1.4, 0.45, 3.2] },
+      aisle: { pos: [-6.4, 2.8, 3.2], look: [4, 1.1, 3.2] },
+      dock: { pos: [9.4, 3.5, 5.2], look: [13.2, 1.5, 0] },
+      status: { pos: [-4.2, 2.5, 3.15], look: [beaconX, 1.15, 0] },
+    };
+
+    const goalPos = new THREE.Vector3();
+    const goalLook = new THREE.Vector3();
+    let touring = true;
+
+    function go(name) {
+      const view = views[name];
+      goalPos.set(...view.pos);
+      goalLook.set(...view.look);
+      touring = true;
+      document.querySelectorAll(".views button").forEach((button) => {
+        button.classList.toggle("is-on", button.dataset.view === name);
+      });
+    }
+
+    go("overview");
+    camera.position.copy(goalPos);
+    controls.target.copy(goalLook);
+
+    document.querySelectorAll(".views button").forEach((button) => {
+      button.addEventListener("click", () => go(button.dataset.view));
+    });
+    controls.addEventListener("start", () => {
+      touring = false;
+    });
+
+    let truckDir = 1;
+    const clock = new THREE.Clock();
+
+    function frame() {
+      const t = clock.getElapsedTime();
+      if (touring) {
+        camera.position.lerp(goalPos, 0.06);
+        controls.target.lerp(goalLook, 0.08);
+      }
+      truck.position.x += truckDir * 0.012;
+      if (truck.position.x > 6.2) truckDir = -1;
+      if (truck.position.x < -6.2) truckDir = 1;
+      truck.rotation.y = truckDir === 1 ? 0 : Math.PI;
+      beaconMats.forEach((mat, index) => {
+        mat.emissiveIntensity = 0.45 + Math.sin(t * 2.2 + index) * 0.4;
+      });
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+    frame();
+
+    addEventListener("resize", () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  </script>
+  <script>
+    window.addEventListener("error", () => {
+      document.getElementById("fallback").classList.add("is-on");
+    });
+  </script>
+</body>
+</html>
